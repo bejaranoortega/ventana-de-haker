@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Surveillance Grid</title>
+
+<style>
+:root{
+  --bg:#05080d;
+  --panel:#0b1220;
+  --border:#1e2a4a;
+  --text:#8fd3ff;
+  --accent:#3fb6ff;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  background:radial-gradient(circle at top,#0b1220,#05080d);
+  color:var(--text);
+  font-family:Consolas, monospace;
+  height:100vh;
+  overflow:hidden;
+}
+
+/* ===== GRID ===== */
+.grid{
+  display:grid;
+  grid-template-columns: 2.5fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap:12px;
+  padding:12px;
+  height:100%;
+}
+
+/* ===== PANELS ===== */
+.panel{
+  background:linear-gradient(180deg,#0b1220,#060b16);
+  border:1px solid var(--border);
+  box-shadow:0 0 40px rgba(0,0,0,.8);
+  position:relative;
+  overflow:hidden;
+}
+
+.panel h3{
+  margin:0;
+  padding:8px 12px;
+  font-size:13px;
+  border-bottom:1px solid var(--border);
+  color:var(--accent);
+}
+
+/* ===== MAIN FEED ===== */
+#feed{
+  white-space:pre;
+  font-size:12px;
+  padding:12px;
+}
+
+/* ===== SAT MAP ===== */
+#sat{
+  padding:12px;
+  font-size:12px;
+  line-height:1.4;
+}
+
+/* ===== OVERLAY ===== */
+.scan{
+  position:absolute;
+  inset:0;
+  background:repeating-linear-gradient(
+    0deg,
+    rgba(63,182,255,.04),
+    rgba(63,182,255,.04) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events:none;
+}
+
+/* ===== CONSOLE ===== */
+#console{
+  grid-row:span 2;
+  display:flex;
+  flex-direction:column;
+}
+
+#log{
+  flex:1;
+  padding:10px;
+  white-space:pre-wrap;
+  overflow-y:auto;
+}
+
+input{
+  background:#02040a;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:8px;
+  font-family:inherit;
+}
+
+/* ===== STATUS ===== */
+.stat{
+  padding:10px;
+  font-size:12px;
+  line-height:1.6;
+}
+</style>
+</head>
+
+<body>
+
+<div class="grid">
+
+<!-- CCTV -->
+<div class="panel">
+  <h3>CCTV GRID</h3>
+  <div id="feed"></div>
+  <div class="scan"></div>
+</div>
+
+<!-- SATELLITE -->
+<div class="panel">
+  <h3>SATELLITE TRACKING</h3>
+  <div id="sat"></div>
+</div>
+
+<!-- CONSOLE -->
+<div class="panel" id="console">
+  <h3>SYSTEM CONSOLE</h3>
+  <div id="log">
+Commands:
+cctv
+sat
+status
+clear
+  </div>
+  <input id="cmd" placeholder="> command">
+</div>
+
+<!-- STATUS -->
+<div class="panel">
+  <h3>SYSTEM STATUS</h3>
+  <div class="stat" id="status"></div>
+</div>
+
+</div>
+
+<script>
+const feed=document.getElementById("feed");
+const sat=document.getElementById("sat");
+const log=document.getElementById("log");
+const cmd=document.getElementById("cmd");
+const status=document.getElementById("status");
+
+const shades=[" ",".","░","▒","▓","█"];
+let mode="cctv", t=0;
+
+/* ===== CCTV ===== */
+function cctv(){
+ let f="";
+ for(let y=0;y<18;y++){
+  for(let x=0;x<40;x++){
+   f+=shades[Math.random()*shades.length|0];
+  }
+  f+="\n";
+ }
+ feed.textContent=f;
+}
+
+/* ===== SAT ===== */
+function satFrame(){
+ t+=0.1;
+ sat.textContent=`
+ORBIT ACTIVE
+LAT ${(Math.sin(t)*45).toFixed(2)}°
+LON ${(Math.cos(t)*90).toFixed(2)}°
+ALT ${(420+Math.sin(t)*20).toFixed(0)} km
+
+SCAN ${["URBAN","SEA","DESERT","CLOUD"][Math.random()*4|0]}
+SIGNAL ${(80+Math.random()*20|0)}%
+`;
+}
+
+/* ===== STATUS ===== */
+function updateStatus(){
+ status.textContent=`
+MODE: ${mode.toUpperCase()}
+UPTIME: ${(performance.now()/1000).toFixed(0)} s
+PACKETS: ${(Math.random()*9000|0)}
+CPU LOAD: ${(40+Math.random()*30|0)}%
+MEMORY: ${(50+Math.random()*40|0)}%
+`;
+}
+
+/* ===== LOOP ===== */
+setInterval(()=>{
+ if(mode==="cctv") cctv();
+ if(mode==="sat") satFrame();
+ updateStatus();
+},200);
+
+/* ===== CONSOLE ===== */
+cmd.addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+  const v=cmd.value.toLowerCase();
+  log.textContent+="\n> "+v;
+
+  if(v==="cctv") mode="cctv";
+  else if(v==="sat") mode="sat";
+  else if(v==="status") log.textContent+="\nSYSTEM ONLINE";
+  else if(v==="clear") log.textContent="";
+  else log.textContent+="\nUNKNOWN COMMAND";
+
+  cmd.value="";
+  log.scrollTop=log.scrollHeight;
+ }
+});
+</script>
+
+</body>
+</html>

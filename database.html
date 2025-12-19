@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Database Control</title>
+<link rel="stylesheet" href="style.css">
+
+<style>
+/* ===== FONDO BARRAS ===== */
+.bars-bg{
+  position:fixed;
+  inset:0;
+  background:black;
+  overflow:hidden;
+  z-index:0;
+}
+.bar{
+  position:absolute;
+  bottom:0;
+  width:3px;
+  background:#00ff55;
+  opacity:.25;
+  animation:rise linear infinite;
+}
+@keyframes rise{
+  from{height:5%}
+  to{height:100%}
+}
+
+/* ===== CARACTERES ALEATORIOS ===== */
+.matrix{
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:1;
+  color:#00ff55;
+  font-family:monospace;
+  font-size:12px;
+  opacity:.25;
+  white-space:pre;
+}
+
+/* ===== VENTANAS ===== */
+.window{
+  position:absolute;
+  border:2px solid #00ff55;
+  background:rgba(0,0,0,.9);
+  box-shadow:0 0 15px #00ff55;
+  color:#00ff55;
+  z-index:5;
+}
+.header{
+  background:#00ff55;
+  color:black;
+  padding:5px;
+  cursor:move;
+  font-weight:bold;
+}
+.content{
+  padding:10px;
+}
+
+/* ===== GRAFICA ===== */
+canvas{
+  background:black;
+  border:1px solid #00ff55;
+}
+
+/* ===== INPUT ===== */
+input{
+  width:100%;
+  margin-top:5px;
+  padding:6px;
+  background:black;
+  border:1px solid #00ff55;
+  color:#00ff55;
+}
+
+.back{
+  color:#00ff55;
+  text-decoration:none;
+}
+</style>
+</head>
+
+<body>
+
+<!-- ===== FONDO ===== -->
+<div class="bars-bg" id="bars"></div>
+
+<!-- ===== TEXTO ALEATORIO ===== -->
+<pre class="matrix" id="matrix"></pre>
+
+<!-- ===== VENTANA DATABASE ===== -->
+<div class="window" style="top:60px;left:40px;width:340px">
+  <div class="header">DATABASE</div>
+  <div class="content">
+<pre id="dbOut">
+CONNECTED ✔
+ENCRYPTION: AES-256
+READY FOR QUERY
+</pre>
+<input id="cmd" placeholder="> enter command">
+<a href="inicio.html" class="back">⬅ back</a>
+  </div>
+</div>
+
+<!-- ===== VENTANA GRAFICA ===== -->
+<div class="window" style="top:80px;right:40px;width:360px">
+  <div class="header">LIVE ACTIVITY</div>
+  <div class="content">
+    <canvas id="chart" width="320" height="140"></canvas>
+  </div>
+</div>
+
+<!-- ===== VENTANA LOGS ===== -->
+<div class="window" style="bottom:60px;left:120px;width:300px">
+  <div class="header">SYSTEM LOGS</div>
+  <div class="content">
+<pre id="logs">
+node_01 connected
+packet received
+session active
+</pre>
+  </div>
+</div>
+
+<script>
+/* ===== BARRAS ===== */
+const bars=document.getElementById("bars");
+for(let i=0;i<120;i++){
+ let b=document.createElement("div");
+ b.className="bar";
+ b.style.left=Math.random()*100+"%";
+ b.style.animationDuration=(2+Math.random()*3)+"s";
+ bars.appendChild(b);
+}
+
+/* ===== CARACTERES ALEATORIOS ===== */
+const chars="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#$%&*";
+const matrix=document.getElementById("matrix");
+const cols=Math.floor(window.innerWidth/12);
+let rows=Math.floor(window.innerHeight/14);
+
+function randomMatrix(){
+ let text="";
+ for(let r=0;r<rows;r++){
+  for(let c=0;c<cols;c++){
+   text+=chars[Math.random()*chars.length|0];
+  }
+  text+="\n";
+ }
+ matrix.textContent=text;
+}
+setInterval(randomMatrix,400);
+
+/* ===== CONSOLA ===== */
+const out=document.getElementById("dbOut");
+const cmd=document.getElementById("cmd");
+const responses=[
+ "QUERY EXECUTED",
+ "DATA STREAM OPEN",
+ "ACCESS GRANTED",
+ "NO ERRORS",
+ "BLOCK DECRYPTED"
+];
+cmd.onkeydown=e=>{
+ if(e.key==="Enter"){
+  out.textContent+="\n> "+responses[Math.random()*responses.length|0];
+  cmd.value="";
+  out.scrollTop=9999;
+ }
+};
+
+/* ===== GRAFICA TIEMPO REAL ===== */
+const c=document.getElementById("chart");
+const x=c.getContext("2d");
+let data=new Array(30).fill(50);
+
+function draw(){
+ x.clearRect(0,0,c.width,c.height);
+ x.beginPath();
+ x.strokeStyle="#00ff55";
+ x.moveTo(0,c.height-data[0]);
+ data.forEach((v,i)=>{
+  x.lineTo(i*11,c.height-v);
+ });
+ x.stroke();
+ data.shift();
+ data.push(20+Math.random()*100);
+}
+setInterval(draw,500);
+
+/* ===== VENTANAS MOVIBLES ===== */
+document.querySelectorAll(".header").forEach(h=>{
+ h.onmousedown=e=>{
+  let w=h.parentElement;
+  let x=e.clientX-w.offsetLeft;
+  let y=e.clientY-w.offsetTop;
+  document.onmousemove=ev=>{
+   w.style.left=ev.clientX-x+"px";
+   w.style.top=ev.clientY-y+"px";
+  };
+  document.onmouseup=()=>document.onmousemove=null;
+ };
+});
+</script>
+
+</body>
+</html>

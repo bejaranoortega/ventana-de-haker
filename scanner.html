@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Network Scanner</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="scanner-bg">
+
+  <!-- FONDO ANIMADO -->
+  <canvas id="network"></canvas>
+
+  <!-- TERMINAL -->
+  <div class="terminal">
+    <pre id="output">
+INITIALIZING NETWORK SCAN...
+WAITING FOR USER COMMAND...
+--------------------------------
+    </pre>
+
+    <input
+      type="text"
+      id="command"
+      placeholder="> enter command"
+      autocomplete="off"
+    >
+
+    <a href="inicio.html" class="back">⬅ BACK TO DESKTOP</a>
+  </div>
+
+<script src="scanner.js"></script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>System Console</title>
+
+<style>
+body{
+  margin:0;
+  background:black;
+  color:#00ff55;
+  font-family:monospace;
+  overflow:hidden;
+}
+
+/* ===== FONDO BARRAS ===== */
+.bars{
+  position:fixed;
+  inset:0;
+  z-index:0;
+}
+.bar{
+  position:absolute;
+  bottom:0;
+  width:3px;
+  background:#00ff55;
+  opacity:.2;
+  animation:rise linear infinite;
+}
+@keyframes rise{
+  from{height:5%}
+  to{height:100%}
+}
+
+/* ===== MATRIX ===== */
+.matrix{
+  position:fixed;
+  inset:0;
+  z-index:1;
+  opacity:.15;
+  pointer-events:none;
+  white-space:pre;
+}
+
+/* ===== CONSOLA ===== */
+.console{
+  position:relative;
+  z-index:5;
+  width:90%;
+  height:85vh;
+  margin:5vh auto;
+  border:2px solid #00ff55;
+  box-shadow:0 0 20px #00ff55;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+}
+
+.output{
+  flex:1;
+  overflow-y:auto;
+  white-space:pre-wrap;
+}
+
+.input{
+  border-top:1px solid #00ff55;
+  padding-top:5px;
+}
+
+input{
+  width:100%;
+  background:black;
+  border:none;
+  outline:none;
+  color:#00ff55;
+  font-family:monospace;
+  font-size:16px;
+}
+a{color:#00ff55;text-decoration:none;}
+</style>
+</head>
+
+<body>
+
+<div class="bars" id="bars"></div>
+<pre class="matrix" id="matrix"></pre>
+
+<div class="console">
+  <div class="output" id="out">
+SYSTEM BOOTING...
+Loading modules...
+Establishing secure channel...
+ACCESS GRANTED ✔
+
+Type "help" to list commands
+--------------------------------
+  </div>
+
+  <div class="input">
+    <input id="cmd" autofocus placeholder=">">
+    <a href="inicio.html">⬅ back</a>
+  </div>
+</div>
+
+<script>
+/* ===== BARRAS ===== */
+const bars=document.getElementById("bars");
+for(let i=0;i<120;i++){
+ let b=document.createElement("div");
+ b.className="bar";
+ b.style.left=Math.random()*100+"%";
+ b.style.animationDuration=(2+Math.random()*3)+"s";
+ bars.appendChild(b);
+}
+
+/* ===== MATRIX ===== */
+const chars="01ABCDEF#$%";
+const matrix=document.getElementById("matrix");
+const cols=Math.floor(innerWidth/12);
+const rows=Math.floor(innerHeight/14);
+
+setInterval(()=>{
+ let t="";
+ for(let r=0;r<rows;r++){
+  for(let c=0;c<cols;c++){
+   t+=chars[Math.random()*chars.length|0];
+  }
+  t+="\n";
+ }
+ matrix.textContent=t;
+},500);
+
+/* ===== CONSOLA ===== */
+const out=document.getElementById("out");
+const cmd=document.getElementById("cmd");
+
+const commands={
+ help:[
+  "Available commands:",
+  "- status",
+  "- scan",
+  "- clear",
+  "- exit"
+ ],
+ status:[
+  "CPU: 43%",
+  "RAM: 61%",
+  "NETWORK: ACTIVE",
+  "SECURITY: ENABLED"
+ ],
+ scan:[
+  "Scanning system...",
+  "No threats detected",
+  "Ports secured",
+  "Scan completed ✔"
+ ]
+};
+
+cmd.addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+  const v=cmd.value.trim();
+  out.textContent+="\n> "+v;
+  if(commands[v]){
+   commands[v].forEach(l=>{
+    out.textContent+="\n"+l;
+   });
+  }else if(v==="clear"){
+   out.textContent="";
+  }else if(v==="exit"){
+   out.textContent+="\nSession closed";
+  }else{
+   out.textContent+="\nCommand not found";
+  }
+  cmd.value="";
+  out.scrollTop=out.scrollHeight;
+ }
+});
+</script>
+
+</body>
+</html>
