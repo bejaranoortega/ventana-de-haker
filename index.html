@@ -1,24 +1,1261 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>System Login</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>NEXUS_OS // System Desktop</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=JetBrains+Mono:wght@400;500;700;800&display=swap');
+
+  :root{
+    --bg:        #050a08;
+    --bg-2:      #0a1410;
+    --panel:     #0c1a14;
+    --panel-2:   #0e2018;
+    --border:    #14392a;
+    --border-lt: #1d5238;
+    --green:     #00ff8c;
+    --green-dim: #0a8c52;
+    --green-glow: rgba(0,255,140,0.45);
+    --cyan:      #00d4ff;
+    --amber:     #ffb800;
+    --red:       #ff3860;
+    --text:      #c8ffe4;
+    --text-dim:  #5f9b80;
+    --mono:      'JetBrains Mono', 'Share Tech Mono', monospace;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg);
+    font-family:var(--mono);
+    color:var(--text);
+    overflow:hidden;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ===================== BOOT SEQUENCE ===================== */
+  #boot{
+    position:fixed; inset:0; z-index:9999;
+    background:#000;
+    color:var(--green);
+    font-size:13px;
+    padding:30px 40px;
+    line-height:1.55;
+    white-space:pre-wrap;
+    overflow:hidden;
+  }
+  #boot .cursor-blink{ animation:blink 1s steps(1) infinite; }
+  #boot.hide{ display:none; }
+  #boot-skip{
+    position:absolute; bottom:20px; right:30px;
+    color:var(--text-dim); font-size:11px;
+    border:1px solid var(--border-lt); padding:6px 12px;
+    cursor:pointer; background:transparent; font-family:var(--mono);
+  }
+  #boot-skip:hover{ color:var(--green); border-color:var(--green); }
+
+  @keyframes blink{ 50%{ opacity:0; } }
+
+  /* ===================== CRT / SCANLINE OVERLAY ===================== */
+  #crt-overlay{
+    position:fixed; inset:0; pointer-events:none; z-index:8000;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(0,0,0,0) 0px,
+        rgba(0,0,0,0) 1px,
+        rgba(0,0,0,0.10) 2px,
+        rgba(0,0,0,0.10) 3px
+      );
+    mix-blend-mode:multiply;
+  }
+  #crt-vignette{
+    position:fixed; inset:0; pointer-events:none; z-index:7999;
+    background:radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+  }
+  #crt-flicker{
+    position:fixed; inset:0; pointer-events:none; z-index:8001;
+    background:rgba(0,255,140,0.015);
+    animation:flicker 6s infinite;
+  }
+  @keyframes flicker{
+    0%,100%{ opacity:1; }
+    50%{ opacity:0.4; }
+    52%{ opacity:1; }
+    78%{ opacity:0.7; }
+    79%{ opacity:1; }
+  }
+
+  /* ===================== DESKTOP ===================== */
+  #desktop{
+    position:relative; width:100%; height:100%;
+    background:
+      radial-gradient(circle at 15% 10%, rgba(0,255,140,0.05), transparent 40%),
+      radial-gradient(circle at 85% 90%, rgba(0,212,255,0.04), transparent 40%),
+      linear-gradient(var(--bg), var(--bg));
+    background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+  }
+  #desktop::before{
+    content:'';
+    position:absolute; inset:0; pointer-events:none;
+    background-image:
+      linear-gradient(rgba(0,255,140,0.035) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,140,0.035) 1px, transparent 1px);
+    background-size:34px 34px;
+  }
+
+  /* top bar */
+  #topbar{
+    position:absolute; top:0; left:0; right:0; height:34px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px;
+    background:linear-gradient(180deg, rgba(10,28,20,0.95), rgba(8,20,15,0.85));
+    border-bottom:1px solid var(--border);
+    font-size:11px; letter-spacing:0.5px; color:var(--text-dim);
+    z-index:50;
+  }
+  #topbar .brand{ color:var(--green); font-weight:700; letter-spacing:2px; }
+  #topbar .brand span{ color:var(--cyan); }
+  #topbar .right{ display:flex; gap:18px; align-items:center; }
+  #topbar .clock{ color:var(--green); }
+  #topbar .pulse-dot{
+    width:7px; height:7px; border-radius:50%; background:var(--green);
+    display:inline-block; margin-right:5px; box-shadow:0 0 6px var(--green);
+    animation:pulse 2s infinite;
+  }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
+
+  /* icons column */
+  #icons{
+    position:absolute; top:50px; right:18px;
+    display:flex; flex-direction:column; gap:14px;
+    z-index:40;
+  }
+  .icon-btn{
+    width:84px; padding:10px 6px 8px;
+    background:rgba(10,26,18,0.55);
+    border:1px solid var(--border);
+    color:var(--text);
+    display:flex; flex-direction:column; align-items:center; gap:6px;
+    cursor:pointer; font-family:var(--mono);
+    transition:border-color .15s, transform .1s, background .15s;
+    text-align:center;
+    -webkit-tap-highlight-color:transparent;
+    user-select:none;
+  }
+  .icon-btn .glyph{ font-size:22px; filter:drop-shadow(0 0 4px var(--green-glow)); }
+  .icon-btn .label{ font-size:9.5px; letter-spacing:0.5px; color:var(--text-dim); line-height:1.2; }
+  .icon-btn:hover{ border-color:var(--green); background:rgba(0,255,140,0.07); transform:translateX(-2px); }
+  .icon-btn:hover .label{ color:var(--green); }
+  .icon-btn:active{ transform:scale(0.96); }
+  .icon-btn .key{
+    position:absolute; top:2px; left:3px; font-size:8px; color:var(--text-dim); opacity:0.6;
+  }
+
+  /* bottom status bar */
+  #statusbar{
+    position:absolute; bottom:0; left:0; right:0; height:30px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 14px;
+    background:linear-gradient(0deg, rgba(10,28,20,0.95), rgba(8,20,15,0.8));
+    border-top:1px solid var(--border);
+    font-size:10.5px; color:var(--text-dim);
+    z-index:50;
+  }
+  #statusbar .stats{ display:flex; gap:16px; }
+  #statusbar .bar-track{
+    display:inline-block; width:56px; height:7px; border:1px solid var(--border-lt);
+    vertical-align:middle; margin-left:5px; position:relative; overflow:hidden;
+  }
+  #statusbar .bar-fill{
+    position:absolute; left:0; top:0; bottom:0; background:var(--green);
+    box-shadow:0 0 4px var(--green-glow);
+  }
+  #statusbar .taskbar-wins{ display:flex; gap:6px; }
+  .task-chip{
+    border:1px solid var(--border-lt); padding:2px 9px; font-size:10px;
+    color:var(--text-dim); cursor:pointer; background:rgba(0,255,140,0.05);
+  }
+  .task-chip:hover{ color:var(--green); border-color:var(--green); }
+  .task-chip.active{ color:var(--green); border-color:var(--green); }
+
+  /* boot log line on desktop (tickertape) */
+  #ticker{
+    position:absolute; top:34px; left:0; right:0; height:20px;
+    background:rgba(0,0,0,0.35);
+    border-bottom:1px solid var(--border);
+    overflow:hidden; white-space:nowrap; z-index:30;
+    font-size:10px; color:var(--text-dim);
+  }
+  #ticker-inner{
+    display:inline-block; padding-left:100%;
+    animation:ticker-scroll 38s linear infinite;
+  }
+
+  @keyframes ticker-scroll{
+    from{ transform:translateX(0); }
+    to{ transform:translateX(-100%); }
+  }
+
+  /* ===================== WINDOWS ===================== */
+  .win{
+    position:absolute;
+    min-width:280px;
+    background:rgba(8,18,14,0.97);
+    border:1px solid var(--border-lt);
+    box-shadow:0 0 0 1px rgba(0,0,0,0.4), 0 18px 50px rgba(0,0,0,0.6), 0 0 30px rgba(0,255,140,0.05);
+    display:flex; flex-direction:column;
+    z-index:100;
+    backdrop-filter:blur(2px);
+  }
+  .win.focused{ border-color:var(--green); box-shadow:0 18px 50px rgba(0,0,0,0.6), 0 0 24px rgba(0,255,140,0.18); }
+  .win.minimized{ display:none; }
+  .win-head{
+    height:32px; flex:0 0 32px;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 4px 0 10px;
+    background:linear-gradient(180deg, rgba(0,255,140,0.10), rgba(0,255,140,0.02));
+    border-bottom:1px solid var(--border);
+    cursor:move; user-select:none;
+    font-size:11px; letter-spacing:0.5px; color:var(--green-dim);
+  }
+  .win.focused .win-head{ color:var(--green); }
+  .win-head .title{ display:flex; align-items:center; gap:7px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+  .win-head .ctrls{ display:flex; gap:4px; }
+  .win-head button{
+    width:20px; height:20px; background:transparent; border:1px solid var(--border-lt);
+    color:var(--text-dim); font-family:var(--mono); font-size:11px; cursor:pointer;
+    display:flex; align-items:center; justify-content:center; line-height:1;
+  }
+  .win-head button:hover{ border-color:var(--green); color:var(--green); }
+  .win-head button.close-btn:hover{ border-color:var(--red); color:var(--red); }
+
+  .win-body{
+    flex:1; overflow:auto; padding:14px;
+    font-size:12.5px; line-height:1.55;
+  }
+  .win-resize{
+    position:absolute; right:0; bottom:0; width:16px; height:16px;
+    cursor:nwse-resize;
+    background:linear-gradient(135deg, transparent 50%, var(--border-lt) 50%);
+  }
+
+  /* scrollbars */
+  .win-body::-webkit-scrollbar{ width:8px; }
+  .win-body::-webkit-scrollbar-track{ background:var(--bg-2); }
+  .win-body::-webkit-scrollbar-thumb{ background:var(--border-lt); }
+  .win-body::-webkit-scrollbar-thumb:hover{ background:var(--green-dim); }
+
+  /* generic UI bits reused across apps */
+  .btn{
+    font-family:var(--mono); background:rgba(0,255,140,0.06);
+    border:1px solid var(--border-lt); color:var(--green);
+    padding:7px 14px; font-size:11.5px; cursor:pointer; letter-spacing:0.3px;
+    transition:background .15s, border-color .15s;
+  }
+  .btn:hover{ background:rgba(0,255,140,0.15); border-color:var(--green); }
+  .btn:active{ transform:translateY(1px); }
+  .btn.danger{ color:var(--red); }
+  .btn.danger:hover{ background:rgba(255,56,96,0.12); border-color:var(--red); }
+  .btn.amber{ color:var(--amber); }
+  .btn.amber:hover{ background:rgba(255,184,0,0.12); border-color:var(--amber); }
+  .btn:disabled{ opacity:0.35; cursor:not-allowed; }
+
+  .field{
+    width:100%; background:var(--bg-2); border:1px solid var(--border-lt);
+    color:var(--text); font-family:var(--mono); font-size:12px; padding:8px 10px;
+    outline:none;
+  }
+  .field:focus{ border-color:var(--green); }
+
+  .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .col{ display:flex; flex-direction:column; gap:8px; }
+  .label-sm{ font-size:10px; color:var(--text-dim); letter-spacing:0.5px; text-transform:uppercase; }
+  .divider{ height:1px; background:var(--border); margin:10px 0; }
+  .mono-block{
+    background:var(--bg-2); border:1px solid var(--border);
+    padding:10px; white-space:pre-wrap; font-size:11.5px; color:var(--green-dim);
+    max-height:220px; overflow:auto;
+  }
+  .progress{
+    height:10px; background:var(--bg-2); border:1px solid var(--border-lt); position:relative; overflow:hidden;
+  }
+  .progress > div{ height:100%; background:var(--green); box-shadow:0 0 8px var(--green-glow); transition:width .2s; }
+  .blinking-cursor{ display:inline-block; width:7px; height:13px; background:var(--green); animation:blink 1s steps(1) infinite; vertical-align:middle; }
+  .tag{ font-size:9.5px; padding:2px 6px; border:1px solid var(--border-lt); color:var(--text-dim); letter-spacing:0.5px; }
+  .tag.ok{ color:var(--green); border-color:var(--green-dim); }
+  .tag.warn{ color:var(--amber); border-color:var(--amber); }
+  .tag.bad{ color:var(--red); border-color:var(--red); }
+
+  table.data-tbl{ width:100%; border-collapse:collapse; font-size:11.5px; }
+  table.data-tbl th{ text-align:left; color:var(--text-dim); font-weight:500; padding:6px 8px; border-bottom:1px solid var(--border-lt); text-transform:uppercase; font-size:10px; letter-spacing:0.5px; }
+  table.data-tbl td{ padding:6px 8px; border-bottom:1px solid var(--border); }
+  table.data-tbl tr:hover td{ background:rgba(0,255,140,0.04); }
+
+  /* toast / notifications */
+  #toast-stack{
+    position:absolute; top:42px; right:18px; z-index:500;
+    display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+  }
+  .toast{
+    background:rgba(8,18,14,0.97); border:1px solid var(--green-dim);
+    border-left:3px solid var(--green); padding:9px 13px; font-size:11px;
+    max-width:280px; box-shadow:0 8px 24px rgba(0,0,0,0.5);
+    animation:toast-in .25s ease-out;
+  }
+  .toast.warn{ border-color:var(--amber); border-left-color:var(--amber); }
+  .toast.bad{ border-color:var(--red); border-left-color:var(--red); }
+  @keyframes toast-in{ from{ transform:translateX(30px); opacity:0; } to{ transform:translateX(0); opacity:1; } }
+
+  /* context menu (right click desktop) */
+  #ctxmenu{
+    position:absolute; z-index:600; background:rgba(8,18,14,0.98);
+    border:1px solid var(--border-lt); min-width:170px; display:none;
+    font-size:11.5px; box-shadow:0 10px 30px rgba(0,0,0,0.6);
+  }
+  #ctxmenu div{ padding:9px 14px; cursor:pointer; color:var(--text); }
+  #ctxmenu div:hover{ background:rgba(0,255,140,0.1); color:var(--green); }
+
+  /* mobile */
+  @media (max-width:720px){
+    #icons{ flex-direction:row; flex-wrap:wrap; top:auto; bottom:34px; left:0; right:0; justify-content:center; background:rgba(5,10,8,0.92); padding:8px; gap:8px; border-top:1px solid var(--border); max-height:38vh; overflow-y:auto; z-index:200;}
+    .icon-btn{ width:64px; }
+    .win{ left:4px !important; right:4px; width:auto !important; max-height:54vh !important; top:42px !important; }
+    .win-resize{ display:none; }
+  }
+</style>
 </head>
-<body class="login-body">
+<body>
 
-  <div class="login-box">
-    <h2>ACCESS SYSTEM</h2>
+<!-- BOOT SEQUENCE -->
+<div id="boot">
+  <div id="boot-text"></div>
+  <button id="boot-skip">SKIP [ESC]</button>
+</div>
 
-    <input type="text" placeholder="Username">
-    <input type="password" placeholder="Password">
+<!-- CRT EFFECTS -->
+<div id="crt-overlay"></div>
+<div id="crt-vignette"></div>
+<div id="crt-flicker"></div>
 
-    <a href="inicio.html">
-      <button>LOGIN</button>
-    </a>
+<!-- DESKTOP -->
+<div id="desktop">
 
-    <p class="hint">Simulation only</p>
+  <div id="topbar">
+    <div class="brand">NEXUS<span>_OS</span> v3.1</div>
+    <div class="right">
+      <span><span class="pulse-dot"></span>LINK ESTABLE</span>
+      <span class="clock" id="clock">00:00:00</span>
+    </div>
   </div>
 
+  <div id="ticker">
+    <div id="ticker-inner"></div>
+  </div>
+
+  <div id="toast-stack"></div>
+
+  <div id="icons"><!-- icon buttons injected by JS --></div>
+
+  <!-- windows get appended here -->
+
+  <div id="statusbar">
+    <div class="stats">
+      <span>CPU <span id="cpu-val">12%</span><span class="bar-track"><span class="bar-fill" id="cpu-bar" style="width:12%"></span></span></span>
+      <span>RAM <span id="ram-val">34%</span><span class="bar-track"><span class="bar-fill" id="ram-bar" style="width:34%"></span></span></span>
+      <span>NET <span id="net-val">2.1 MB/s</span></span>
+    </div>
+    <div class="taskbar-wins" id="taskbar-wins"></div>
+  </div>
+
+</div>
+
+<div id="ctxmenu">
+  <div data-act="boot">↻ Reiniciar boot sequence</div>
+  <div data-act="sound">🔊 Alternar sonido</div>
+  <div data-act="theme">▣ Cambiar tema</div>
+</div>
+
+<script>
+/* =========================================================================
+   NEXUS_OS — core engine: boot, sound, windows, taskbar, stats, easter eggs
+   ========================================================================= */
+
+/* ---------- AUDIO ENGINE (WebAudio synth, no external files) ---------- */
+const Audio_ = (() => {
+  let ctx = null;
+  let enabled = true;
+  function ensure(){ if(!ctx){ ctx = new (window.AudioContext||window.webkitAudioContext)(); } return ctx; }
+  function beep({freq=440, dur=0.08, type='sine', gain=0.05, slideTo=null}={}){
+    if(!enabled) return;
+    try{
+      const c = ensure();
+      const osc = c.createOscillator();
+      const g = c.createGain();
+      osc.type = type; osc.frequency.value = freq;
+      if(slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, c.currentTime+dur);
+      g.gain.value = gain;
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime+dur);
+      osc.connect(g); g.connect(c.destination);
+      osc.start(); osc.stop(c.currentTime+dur);
+    }catch(e){}
+  }
+  function key(){ beep({freq: 600+Math.random()*500, dur:0.03, type:'square', gain:0.02}); }
+  function click(){ beep({freq:880, dur:0.05, type:'square', gain:0.04}); }
+  function open(){ beep({freq:220, dur:0.12, type:'sawtooth', gain:0.035, slideTo:440}); }
+  function close(){ beep({freq:440, dur:0.12, type:'sawtooth', gain:0.035, slideTo:140}); }
+  function error(){ beep({freq:160, dur:0.18, type:'square', gain:0.05}); setTimeout(()=>beep({freq:120,dur:0.18,type:'square',gain:0.05}),120); }
+  function success(){ beep({freq:520,dur:0.08,type:'sine',gain:0.04}); setTimeout(()=>beep({freq:780,dur:0.12,type:'sine',gain:0.04}),90); }
+  function alarm(){ beep({freq:300,dur:0.25,type:'square',gain:0.06,slideTo:900}); }
+  function toggle(){ enabled = !enabled; return enabled; }
+  return {key, click, open, close, error, success, alarm, toggle, get enabled(){return enabled;}, set enabled(v){enabled=v;} };
+})();
+
+/* ---------- CLOCK + FAKE SYSTEM STATS ---------- */
+function pad(n){ return n.toString().padStart(2,'0'); }
+function tickClock(){
+  const d = new Date();
+  document.getElementById('clock').textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+}
+setInterval(tickClock, 1000); tickClock();
+
+function tickStats(){
+  const cpu = Math.max(4, Math.min(97, 12 + Math.round(Math.sin(Date.now()/4000)*10) + Math.round(Math.random()*14)));
+  const ram = Math.max(20, Math.min(92, 34 + Math.round(Math.cos(Date.now()/6000)*8) + Math.round(Math.random()*6)));
+  const net = (1.2 + Math.random()*6.5).toFixed(1);
+  document.getElementById('cpu-val').textContent = cpu+'%';
+  document.getElementById('cpu-bar').style.width = cpu+'%';
+  document.getElementById('ram-val').textContent = ram+'%';
+  document.getElementById('ram-bar').style.width = ram+'%';
+  document.getElementById('net-val').textContent = net+' MB/s';
+}
+setInterval(tickStats, 1800);
+
+/* ---------- TOASTS ---------- */
+function toast(msg, kind=''){
+  const stack = document.getElementById('toast-stack');
+  const el = document.createElement('div');
+  el.className = 'toast' + (kind? ' '+kind : '');
+  el.textContent = msg;
+  stack.appendChild(el);
+  setTimeout(()=>{ el.style.transition='opacity .4s, transform .4s'; el.style.opacity='0'; el.style.transform='translateX(30px)'; setTimeout(()=>el.remove(),400); }, 3600);
+}
+
+/* ---------- TICKER TEXT ---------- */
+const tickerMsgs = [
+  'NODE_07 sincronizado','firewall perimetral: OK','sin intrusiones detectadas en las últimas 6h',
+  'paquetes entrantes: nominal','cifrado AES-256 activo','latencia promedio 23ms',
+  'backup automático completado','sesión segura iniciada','escaneo programado en 04:00:00'
+];
+document.getElementById('ticker-inner').textContent = tickerMsgs.join('     //     ');
+
+/* ---------- BOOT SEQUENCE ---------- */
+const bootLines = [
+  'NEXUS_OS BIOS v3.1.4 (c) Anonymous Systems',
+  'Detectando hardware...........[ OK ]',
+  'CPU: QUANTUM-CORE x8 @ 4.4GHz...[ OK ]',
+  'RAM: 32768MB................[ OK ]',
+  'Montando /dev/sda1 (root)...[ OK ]',
+  'Cargando kernel cifrado......[ OK ]',
+  'Inicializando interfaz de red eth0...[ OK ]',
+  'Estableciendo túnel VPN multisalto...[ OK ]',
+  'Verificando firma digital del sistema...[ OK ]',
+  'Cargando módulos de seguridad: firewall, IDS, honeypot...[ OK ]',
+  'Descifrando partición de usuario...[ OK ]',
+  '',
+  'bienvenido, operador.',
+  'iniciando entorno de escritorio NEXUS_OS...'
+];
+let bootIdx = 0, charIdx = 0;
+const bootTextEl = document.getElementById('boot-text');
+function typeBoot(){
+  if(bootIdx >= bootLines.length){ finishBoot(); return; }
+  const line = bootLines[bootIdx];
+  if(charIdx <= line.length){
+    bootTextEl.textContent = bootLines.slice(0,bootIdx).join('\n') + (bootIdx>0?'\n':'') + line.slice(0,charIdx);
+    charIdx++;
+    if(Math.random()<0.5) Audio_.key();
+    setTimeout(typeBoot, 8 + Math.random()*18);
+  } else {
+    bootIdx++; charIdx = 0;
+    setTimeout(typeBoot, 90);
+  }
+}
+function finishBoot(){
+  const boot = document.getElementById('boot');
+  boot.style.transition = 'opacity .5s';
+  boot.style.opacity = '0';
+  setTimeout(()=>{ boot.classList.add('hide'); }, 500);
+}
+document.getElementById('boot-skip').addEventListener('click', finishBoot);
+document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && !document.getElementById('boot').classList.contains('hide')) finishBoot(); });
+setTimeout(typeBoot, 400);
+
+/* ---------- WINDOW MANAGER ---------- */
+const desktop = document.getElementById('desktop');
+const taskbarWins = document.getElementById('taskbar-wins');
+let zTop = 100;
+const openWindows = {}; // id -> {el, minimized}
+
+function focusWin(id){
+  const w = openWindows[id]; if(!w) return;
+  zTop += 1;
+  w.el.style.zIndex = zTop;
+  document.querySelectorAll('.win').forEach(el=>el.classList.remove('focused'));
+  w.el.classList.add('focused');
+  document.querySelectorAll('.task-chip').forEach(c=>c.classList.remove('active'));
+  const chip = document.getElementById('chip-'+id);
+  if(chip) chip.classList.add('active');
+}
+
+function makeDraggable(win, handle){
+  let sx, sy, ox, oy, dragging=false;
+  handle.addEventListener('mousedown', startDrag);
+  handle.addEventListener('touchstart', startDrag, {passive:false});
+  function startDrag(e){
+    dragging = true;
+    const p = e.touches ? e.touches[0] : e;
+    sx = p.clientX; sy = p.clientY;
+    const rect = win.getBoundingClientRect();
+    const parentRect = desktop.getBoundingClientRect();
+    ox = rect.left - parentRect.left; oy = rect.top - parentRect.top;
+    document.addEventListener('mousemove', onDrag);
+    document.addEventListener('mouseup', stopDrag);
+    document.addEventListener('touchmove', onDrag, {passive:false});
+    document.addEventListener('touchend', stopDrag);
+    e.preventDefault();
+  }
+  function onDrag(e){
+    if(!dragging) return;
+    const p = e.touches ? e.touches[0] : e;
+    const dx = p.clientX - sx, dy = p.clientY - sy;
+    let nx = ox+dx, ny = oy+dy;
+    nx = Math.max(-50, Math.min(nx, desktop.clientWidth-60));
+    ny = Math.max(0, Math.min(ny, desktop.clientHeight-40));
+    win.style.left = nx+'px'; win.style.top = ny+'px';
+    e.preventDefault();
+  }
+  function stopDrag(){
+    dragging = false;
+    document.removeEventListener('mousemove', onDrag);
+    document.removeEventListener('mouseup', stopDrag);
+    document.removeEventListener('touchmove', onDrag);
+    document.removeEventListener('touchend', stopDrag);
+  }
+}
+
+function makeResizable(win, handle){
+  let sx, sy, ow, oh, resizing=false;
+  handle.addEventListener('mousedown', start);
+  function start(e){
+    resizing = true;
+    sx = e.clientX; sy = e.clientY;
+    ow = win.offsetWidth; oh = win.offsetHeight;
+    document.addEventListener('mousemove', move);
+    document.addEventListener('mouseup', stop);
+    e.preventDefault(); e.stopPropagation();
+  }
+  function move(e){
+    if(!resizing) return;
+    const nw = Math.max(280, ow + (e.clientX-sx));
+    const nh = Math.max(180, oh + (e.clientY-sy));
+    win.style.width = nw+'px'; win.style.height = nh+'px';
+  }
+  function stop(){ resizing=false; document.removeEventListener('mousemove', move); document.removeEventListener('mouseup', stop); }
+}
+
+let cascadeOffset = 0;
+function openApp(id, title, glyph, bodyHTML, opts={}){
+  if(openWindows[id]){
+    openWindows[id].el.classList.remove('minimized');
+    openWindows[id].minimized = false;
+    focusWin(id);
+    updateTaskbar();
+    return openWindows[id].el;
+  }
+  Audio_.open();
+  const win = document.createElement('div');
+  win.className = 'win focused';
+  win.id = 'win-'+id;
+  const w = opts.width || 420, h = opts.height || 320;
+  cascadeOffset = (cascadeOffset + 1) % 6;
+  const left = opts.left ?? (60 + cascadeOffset*26);
+  const top = opts.top ?? (50 + cascadeOffset*22);
+  win.style.width = w+'px'; win.style.height = h+'px';
+  win.style.left = left+'px'; win.style.top = top+'px';
+  win.innerHTML = `
+    <div class="win-head">
+      <div class="title">${glyph} ${title}</div>
+      <div class="ctrls">
+        <button class="min-btn" title="Minimizar">_</button>
+        <button class="close-btn" title="Cerrar">×</button>
+      </div>
+    </div>
+    <div class="win-body">${bodyHTML}</div>
+    <div class="win-resize"></div>
+  `;
+  desktop.appendChild(win);
+  openWindows[id] = {el: win, minimized:false, title, glyph};
+  win.addEventListener('mousedown', ()=>focusWin(id));
+  win.querySelector('.close-btn').addEventListener('click', (e)=>{ e.stopPropagation(); closeApp(id); });
+  win.querySelector('.min-btn').addEventListener('click', (e)=>{ e.stopPropagation(); minimizeApp(id); });
+  makeDraggable(win, win.querySelector('.win-head'));
+  makeResizable(win, win.querySelector('.win-resize'));
+  focusWin(id);
+  updateTaskbar();
+  if(opts.onOpen) opts.onOpen(win);
+  return win;
+}
+
+function closeApp(id){
+  const w = openWindows[id]; if(!w) return;
+  Audio_.close();
+  if(appRegistry[id] && appRegistry[id].onClose) appRegistry[id].onClose();
+  w.el.remove();
+  delete openWindows[id];
+  updateTaskbar();
+}
+function minimizeApp(id){
+  const w = openWindows[id]; if(!w) return;
+  w.el.classList.add('minimized');
+  w.minimized = true;
+  updateTaskbar();
+}
+function updateTaskbar(){
+  taskbarWins.innerHTML = '';
+  Object.keys(openWindows).forEach(id=>{
+    const w = openWindows[id];
+    const chip = document.createElement('div');
+    chip.className = 'task-chip' + (!w.minimized ? ' active':'');
+    chip.id = 'chip-'+id;
+    chip.textContent = w.glyph + ' ' + w.title;
+    chip.addEventListener('click', ()=>{
+      if(w.minimized){ w.el.classList.remove('minimized'); w.minimized=false; focusWin(id); }
+      else { minimizeApp(id); }
+    });
+    taskbarWins.appendChild(chip);
+  });
+}
+
+/* ---------- ICON BAR (driven by appRegistry, defined per-app below) ---------- */
+function buildIcons(){
+  const bar = document.getElementById('icons');
+  bar.innerHTML = '';
+  Object.entries(appRegistry).forEach(([id, app], i)=>{
+    const btn = document.createElement('div');
+    btn.className = 'icon-btn';
+    btn.innerHTML = `<span class="key">${i+1}</span><span class="glyph">${app.glyph}</span><span class="label">${app.label}</span>`;
+    btn.addEventListener('click', ()=>{ Audio_.click(); app.launch(); });
+    bar.appendChild(btn);
+  });
+}
+
+/* numeric key shortcuts 1-9 to launch apps */
+document.addEventListener('keydown', (e)=>{
+  if(document.activeElement && ['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  const n = parseInt(e.key, 10);
+  const ids = Object.keys(appRegistry);
+  if(!isNaN(n) && n>=1 && n<=ids.length){ appRegistry[ids[n-1]].launch(); }
+});
+
+/* ---------- CONTEXT MENU ---------- */
+const ctx = document.getElementById('ctxmenu');
+desktop.addEventListener('contextmenu', (e)=>{
+  e.preventDefault();
+  ctx.style.display = 'block';
+  ctx.style.left = e.clientX+'px';
+  ctx.style.top = e.clientY+'px';
+});
+document.addEventListener('click', (e)=>{ if(!ctx.contains(e.target)) ctx.style.display='none'; });
+ctx.addEventListener('click', (e)=>{
+  const act = e.target.dataset.act;
+  if(act==='boot'){ location.reload(); }
+  if(act==='sound'){ const on = Audio_.toggle(); toast(on? 'Sonido activado':'Sonido desactivado'); }
+  if(act==='theme'){ document.body.classList.toggle('theme-amber'); toast('Tema alternado'); }
+});
+
+/* ---------- EASTER EGG: secret typed phrases ---------- */
+let typedBuffer = '';
+document.addEventListener('keydown', (e)=>{
+  if(e.key.length===1) typedBuffer += e.key.toLowerCase();
+  typedBuffer = typedBuffer.slice(-20);
+  if(typedBuffer.includes('matrix')){ launchMatrixEgg(); typedBuffer=''; }
+  if(typedBuffer.includes('sudo')){ toast('PERMISO DENEGADO: el operador ya tiene privilegios root.', 'warn'); typedBuffer=''; }
+});
+function launchMatrixEgg(){
+  Audio_.alarm();
+  const ov = document.createElement('canvas');
+  ov.id = 'matrix-egg';
+  ov.style.position='fixed'; ov.style.inset='0'; ov.style.zIndex='9500'; ov.style.cursor='pointer';
+  document.body.appendChild(ov);
+  const ctx2 = ov.getContext('2d');
+  function resize(){ ov.width = window.innerWidth; ov.height = window.innerHeight; }
+  resize();
+  const cols = Math.floor(ov.width/14);
+  const drops = new Array(cols).fill(0);
+  const chars = 'アイウエオカキクケコ01アイウエオサシスセソ';
+  const iv = setInterval(()=>{
+    ctx2.fillStyle = 'rgba(0,0,0,0.08)';
+    ctx2.fillRect(0,0,ov.width,ov.height);
+    ctx2.fillStyle = '#00ff8c';
+    ctx2.font = '14px monospace';
+    drops.forEach((y,i)=>{
+      const ch = chars[Math.floor(Math.random()*chars.length)];
+      ctx2.fillText(ch, i*14, y*14);
+      drops[i] = (y*14 > ov.height && Math.random()>0.975) ? 0 : y+1;
+    });
+  }, 35);
+  function teardown(){ clearInterval(iv); ov.remove(); window.removeEventListener('resize', resize); }
+  ov.addEventListener('click', teardown);
+  setTimeout(teardown, 8000);
+  toast('Easter egg desbloqueado: MATRIX', 'ok');
+}
+
+/* =========================================================================
+   APP 1 — NETWORK SCANNER
+   ========================================================================= */
+const fakeIPs = () => Array.from({length:4},()=>Math.floor(Math.random()*255)).join('.');
+const fakePorts = [21,22,23,25,53,80,110,143,443,445,3306,3389,8080,8443];
+const scanStatuses = ['ABIERTO','CERRADO','FILTRADO'];
+
+function scannerBody(){
+  return `
+    <div class="row" style="justify-content:space-between;">
+      <div class="label-sm">Objetivo de escaneo</div>
+      <span class="tag" id="scn-tag">EN ESPERA</span>
+    </div>
+    <div class="row" style="margin-top:6px;">
+      <input class="field" id="scn-target" placeholder="ej. 192.168.1.0/24" style="flex:1;" value="${fakeIPs()}/24">
+      <button class="btn" id="scn-start">▶ ESCANEAR</button>
+    </div>
+    <div class="progress" style="margin-top:10px;"><div id="scn-progress" style="width:0%"></div></div>
+    <div class="mono-block" id="scn-log" style="margin-top:10px; height:150px;">esperando comando...</div>
+    <table class="data-tbl" id="scn-results" style="margin-top:10px; display:none;">
+      <thead><tr><th>Host</th><th>Puerto</th><th>Estado</th><th>Servicio</th></tr></thead>
+      <tbody id="scn-tbody"></tbody>
+    </table>
+  `;
+}
+const services = {21:'FTP',22:'SSH',23:'TELNET',25:'SMTP',53:'DNS',80:'HTTP',110:'POP3',143:'IMAP',443:'HTTPS',445:'SMB',3306:'MySQL',3389:'RDP',8080:'HTTP-ALT',8443:'HTTPS-ALT'};
+
+function runScanner(win){
+  const startBtn = win.querySelector('#scn-start');
+  const log = win.querySelector('#scn-log');
+  const bar = win.querySelector('#scn-progress');
+  const tag = win.querySelector('#scn-tag');
+  const tbody = win.querySelector('#scn-tbody');
+  const table = win.querySelector('#scn-results');
+  startBtn.addEventListener('click', ()=>{
+    const target = win.querySelector('#scn-target').value || '0.0.0.0/24';
+    startBtn.disabled = true;
+    tag.textContent = 'ESCANEANDO'; tag.className='tag warn';
+    log.textContent = `> nmap -sS -T4 ${target}\n`;
+    table.style.display = 'none';
+    tbody.innerHTML = '';
+    bar.style.width = '0%';
+    let progress = 0;
+    const hosts = Array.from({length: 4+Math.floor(Math.random()*4)}, ()=>fakeIPs());
+    let hostIdx = 0;
+    const iv = setInterval(()=>{
+      progress += 6 + Math.random()*10;
+      if(progress >= 100){ progress = 100; }
+      bar.style.width = progress+'%';
+      if(Math.random()<0.7 && hostIdx < hosts.length){
+        const host = hosts[hostIdx];
+        const nPorts = 1+Math.floor(Math.random()*3);
+        for(let i=0;i<nPorts;i++){
+          const port = fakePorts[Math.floor(Math.random()*fakePorts.length)];
+          const status = Math.random()<0.6 ? 'ABIERTO' : scanStatuses[Math.floor(Math.random()*scanStatuses.length)];
+          log.textContent += `host ${host} puerto ${port}/tcp ${status.toLowerCase()}\n`;
+          log.scrollTop = log.scrollHeight;
+          if(status==='ABIERTO'){
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${host}</td><td>${port}</td><td><span class="tag ok">ABIERTO</span></td><td>${services[port]||'desconocido'}</td>`;
+            tbody.appendChild(tr);
+          }
+          Audio_.key();
+        }
+        hostIdx++;
+      }
+      if(progress >= 100){
+        clearInterval(iv);
+        log.textContent += `\nescaneo completo. ${hosts.length} hosts activos detectados.\n`;
+        tag.textContent = 'COMPLETO'; tag.className='tag ok';
+        table.style.display = '';
+        startBtn.disabled = false;
+        Audio_.success();
+        toast('Escaneo de red completado: '+hosts.length+' hosts activos', 'ok');
+      }
+    }, 220);
+  });
+}
+
+/* =========================================================================
+   APP 2 — DATABASE EXPLORER
+   ========================================================================= */
+const dbTables = {
+  users: {cols:['id','usuario','rol','ultimo_acceso'], rows:[
+    [1,'admin_root','superusuario','2086-01-12 03:14'],
+    [2,'operador_07','analista','2086-01-14 22:01'],
+    [3,'invitado_x','lectura','2086-01-15 09:47'],
+    [4,'n.silva','analista','2086-01-15 11:02'],
+    [5,'auditor_central','auditor','2086-01-10 16:38'],
+  ]},
+  connections: {cols:['id','origen','destino','protocolo','estado'], rows:[
+    [101,'10.0.4.12','203.0.113.9','TCP/443','establecida'],
+    [102,'10.0.4.18','198.51.100.4','TCP/22','establecida'],
+    [103,'10.0.4.22','192.0.2.77','UDP/53','timeout'],
+    [104,'10.0.4.31','203.0.113.55','TCP/8080','establecida'],
+  ]},
+  logs: {cols:['id','evento','severidad','timestamp'], rows:[
+    [9001,'intento de login fallido','media','03:11:42'],
+    [9002,'acceso concedido a panel admin','baja','03:14:09'],
+    [9003,'tráfico anómalo en puerto 4444','alta','03:22:55'],
+    [9004,'certificado SSL renovado','baja','04:00:01'],
+  ]}
+};
+
+function dbBody(){
+  return `
+    <div class="row" style="justify-content:space-between;">
+      <div class="label-sm">Esquema: nexus_core</div>
+      <span class="tag ok">CONECTADO</span>
+    </div>
+    <div class="row" style="margin-top:8px;">
+      ${Object.keys(dbTables).map(t=>`<button class="btn db-tab" data-tbl="${t}" style="font-size:10.5px;">${t}</button>`).join('')}
+    </div>
+    <div class="row" style="margin-top:8px;">
+      <input class="field" id="db-query" placeholder="SELECT * FROM users WHERE ..." style="flex:1; font-size:11px;">
+      <button class="btn" id="db-run">EJECUTAR</button>
+    </div>
+    <div id="db-result" style="margin-top:10px; overflow:auto;"></div>
+  `;
+}
+function renderDbTable(win, tname){
+  const t = dbTables[tname];
+  const html = `<table class="data-tbl"><thead><tr>${t.cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+    <tbody>${t.rows.map(r=>`<tr>${r.map(v=>`<td>${v}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  win.querySelector('#db-result').innerHTML = html;
+}
+function runDatabase(win){
+  win.querySelectorAll('.db-tab').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ Audio_.click(); renderDbTable(win, btn.dataset.tbl); });
+  });
+  win.querySelector('#db-run').addEventListener('click', ()=>{
+    const q = win.querySelector('#db-query').value.trim();
+    if(!q){ return; }
+    const out = win.querySelector('#db-result');
+    out.innerHTML = `<div class="mono-block">ejecutando consulta...</div>`;
+    setTimeout(()=>{
+      const match = Object.keys(dbTables).find(t=> q.toLowerCase().includes(t));
+      if(match){
+        renderDbTable(win, match);
+        toast('Consulta ejecutada sobre "'+match+'"', 'ok');
+        Audio_.success();
+      } else {
+        out.innerHTML = `<div class="mono-block">ERROR: no se encontró tabla coincidente.\nTablas disponibles: ${Object.keys(dbTables).join(', ')}</div>`;
+        Audio_.error();
+      }
+    }, 500);
+  });
+  renderDbTable(win, 'users');
+}
+
+/* =========================================================================
+   APP 3 — CONSOLE (interactive fake terminal)
+   ========================================================================= */
+function consoleBody(){
+  return `
+    <div class="mono-block" id="con-out" style="height:200px; margin-bottom:8px;">NEXUS_OS shell v3.1 — escribe 'help' para ver comandos disponibles.\n</div>
+    <div class="row">
+      <span style="color:var(--green);">operador@nexus:~$</span>
+      <input class="field" id="con-input" style="flex:1; border:none; background:transparent;" autocomplete="off" spellcheck="false">
+    </div>
+  `;
+}
+const consoleCmds = {
+  help: ()=> `comandos disponibles:\n  help        - lista de comandos\n  whoami      - identidad actual\n  scan        - escaneo rápido de red\n  matrix      - ??? \n  hack <ip>   - simula una intrusión (todo ficticio)\n  clear       - limpiar pantalla\n  date        - fecha y hora del sistema\n  sudo        - eleva privilegios (gracioso)\n  decrypt     - intenta descifrar un payload aleatorio`,
+  whoami: ()=> `operador (uid=07, grupo=nexus_admin)`,
+  date: ()=> new Date().toString(),
+  scan: ()=> `escaneando subred local...\n${fakeIPs()} -> activo\n${fakeIPs()} -> activo\n${fakeIPs()} -> inactivo\nescaneo finalizado.`,
+  matrix: ()=> { launchMatrixEgg(); return 'desplegando realidad alternativa...'; },
+  sudo: ()=> `[sudo] contraseña para operador: ********\nPermiso denegado: ya tienes privilegios root, capitán.`,
+  decrypt: ()=> {
+    const hex = Array.from({length:16},()=>Math.floor(Math.random()*16).toString(16)).join('');
+    return `payload: 0x${hex}\nintentando AES-256... ${Math.random()<0.5? 'FALLÓ (clave incorrecta)':'ÉXITO (clave recuperada: ********)'}`;
+  },
+};
+function runConsole(win){
+  const out = win.querySelector('#con-out');
+  const input = win.querySelector('#con-input');
+  function println(t){ out.textContent += t+'\n'; out.scrollTop = out.scrollHeight; }
+  input.addEventListener('keydown', (e)=>{
+    Audio_.key();
+    if(e.key==='Enter'){
+      const raw = input.value; input.value='';
+      println('operador@nexus:~$ '+raw);
+      const [cmd, ...args] = raw.trim().split(/\s+/);
+      if(cmd === 'clear'){ out.textContent=''; return; }
+      if(cmd === 'hack'){
+        const target = args[0] || fakeIPs();
+        println(`iniciando intrusión simulada contra ${target}...`);
+        let step = 0;
+        const steps = ['estableciendo conexión...','sondeando puertos...','explotando vulnerabilidad ficticia...','escalando privilegios...','ACCESO CONCEDIDO (simulado)'];
+        const iv = setInterval(()=>{
+          println(steps[step]);
+          Audio_.key();
+          step++;
+          if(step>=steps.length){ clearInterval(iv); Audio_.success(); toast('Intrusión simulada completada en '+target, 'ok'); }
+        }, 450);
+        return;
+      }
+      if(cmd && consoleCmds[cmd]){ println(consoleCmds[cmd]()); }
+      else if(cmd){ println(`comando no reconocido: ${cmd} (escribe 'help')`); Audio_.error(); }
+    }
+  });
+  win.addEventListener('mousedown', ()=> setTimeout(()=>input.focus(), 0));
+  setTimeout(()=>input.focus(), 100);
+}
+
+/* =========================================================================
+   APP 4 — SURVEILLANCE (fake camera grid)
+   ========================================================================= */
+function surveillanceBody(){
+  const cams = ['CAM_01 LOBBY','CAM_02 PASILLO-B','CAM_03 AZOTEA','CAM_04 ESTACIONAMIENTO'];
+  return `
+    <div class="row" style="justify-content:space-between;">
+      <div class="label-sm">Feeds activos: ${cams.length}</div>
+      <span class="tag ok">GRABANDO</span>
+    </div>
+    <div id="cam-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:8px;">
+      ${cams.map((c,i)=>`
+        <div class="cam-tile" style="position:relative; border:1px solid var(--border-lt); background:#020503; height:110px; overflow:hidden;">
+          <canvas data-cam="${i}" style="width:100%; height:100%; display:block;"></canvas>
+          <div style="position:absolute; top:4px; left:6px; font-size:9.5px; color:var(--green);">${c}</div>
+          <div style="position:absolute; top:4px; right:6px; font-size:9.5px; color:var(--red);">● REC</div>
+          <div style="position:absolute; bottom:4px; right:6px; font-size:9px; color:var(--text-dim);" class="cam-clock">00:00:00</div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+function runSurveillance(win){
+  const canvases = win.querySelectorAll('canvas[data-cam]');
+  const ivs = [];
+  canvases.forEach(cv=>{
+    const c = cv.getContext('2d');
+    function resize(){ cv.width = cv.clientWidth; cv.height = cv.clientHeight; }
+    resize();
+    let t = 0;
+    const iv = setInterval(()=>{
+      t++;
+      c.fillStyle = '#020503'; c.fillRect(0,0,cv.width,cv.height);
+      // static noise
+      for(let i=0;i<40;i++){
+        c.fillStyle = `rgba(0,255,140,${Math.random()*0.07})`;
+        c.fillRect(Math.random()*cv.width, Math.random()*cv.height, 2,2);
+      }
+      // moving blob = "person"
+      const bx = (Math.sin(t/30)*0.3+0.5)*cv.width;
+      const by = (Math.cos(t/45)*0.2+0.55)*cv.height;
+      c.fillStyle = 'rgba(0,255,140,0.4)';
+      c.beginPath(); c.ellipse(bx,by,8,16,0,0,Math.PI*2); c.fill();
+      // scan line
+      c.fillStyle = 'rgba(0,255,140,0.05)';
+      c.fillRect(0, (t*2)%cv.height, cv.width, 2);
+    }, 100);
+    ivs.push(iv);
+  });
+  const clockIv = setInterval(()=>{
+    const d = new Date();
+    win.querySelectorAll('.cam-clock').forEach(el=> el.textContent = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+  }, 1000);
+  ivs.push(clockIv);
+  appRegistry.surveillance._intervals = ivs;
+}
+
+/* =========================================================================
+   APP 5 — PASSWORD TOOL
+   ========================================================================= */
+function passwordBody(){
+  return `
+    <div class="col">
+      <div class="label-sm">Generador de contraseñas</div>
+      <div class="row">
+        <input class="field" id="pw-out" readonly style="flex:1; font-size:14px; letter-spacing:1px; color:var(--green);" value="••••••••••••">
+        <button class="btn" id="pw-gen">↻ GENERAR</button>
+        <button class="btn" id="pw-copy">COPIAR</button>
+      </div>
+      <div class="row" style="font-size:11px; gap:14px;">
+        <label><input type="checkbox" id="pw-upper" checked> Mayúsculas</label>
+        <label><input type="checkbox" id="pw-num" checked> Números</label>
+        <label><input type="checkbox" id="pw-sym" checked> Símbolos</label>
+      </div>
+      <div class="row"><span class="label-sm">Longitud</span><input type="range" id="pw-len" min="6" max="32" value="16" style="flex:1;"><span id="pw-len-val">16</span></div>
+      <div class="divider"></div>
+      <div class="label-sm">Analizador de fortaleza</div>
+      <input class="field" id="pw-test" placeholder="escribe una contraseña para analizar...">
+      <div class="progress" style="margin-top:4px;"><div id="pw-strength-bar" style="width:0%; background:var(--red);"></div></div>
+      <div id="pw-strength-label" style="font-size:11px; color:var(--text-dim); margin-top:4px;">esperando entrada...</div>
+      <div class="divider"></div>
+      <div class="label-sm">Simulador de cracking (fuerza bruta ficticia)</div>
+      <div class="row"><button class="btn amber" id="pw-crack">▶ SIMULAR ATAQUE</button><span id="pw-crack-time" style="font-size:11px; color:var(--text-dim);"></span></div>
+    </div>
+  `;
+}
+function genPassword(len, upper, num, sym){
+  let chars = 'abcdefghijklmnopqrstuvwxyz';
+  if(upper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  if(num) chars += '0123456789';
+  if(sym) chars += '!@#$%^&*()_+-=[]{}';
+  return Array.from({length:len}, ()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+function pwStrength(pw){
+  let score = 0;
+  if(pw.length>=8) score++;
+  if(pw.length>=12) score++;
+  if(/[A-Z]/.test(pw)) score++;
+  if(/[0-9]/.test(pw)) score++;
+  if(/[^A-Za-z0-9]/.test(pw)) score++;
+  return Math.min(score,5);
+}
+function runPassword(win){
+  const out = win.querySelector('#pw-out');
+  const lenSlider = win.querySelector('#pw-len');
+  const lenVal = win.querySelector('#pw-len-val');
+  lenSlider.addEventListener('input', ()=> lenVal.textContent = lenSlider.value);
+  win.querySelector('#pw-gen').addEventListener('click', ()=>{
+    Audio_.click();
+    const pw = genPassword(parseInt(lenSlider.value), win.querySelector('#pw-upper').checked, win.querySelector('#pw-num').checked, win.querySelector('#pw-sym').checked);
+    out.value = pw;
+    toast('Contraseña generada', 'ok');
+  });
+  win.querySelector('#pw-copy').addEventListener('click', ()=>{
+    if(out.value.includes('•')){ toast('Genera una contraseña primero', 'warn'); return; }
+    navigator.clipboard?.writeText(out.value).catch(()=>{});
+    toast('Copiado al portapapeles');
+  });
+  const testInput = win.querySelector('#pw-test');
+  const bar = win.querySelector('#pw-strength-bar');
+  const label = win.querySelector('#pw-strength-label');
+  const labels = ['muy débil','débil','aceptable','fuerte','muy fuerte','excelente'];
+  const colors = ['#ff3860','#ff3860','#ffb800','#ffb800','#00ff8c','#00ff8c'];
+  testInput.addEventListener('input', ()=>{
+    const s = pwStrength(testInput.value);
+    bar.style.width = (testInput.value? (s/5*100):0)+'%';
+    bar.style.background = colors[s];
+    label.textContent = testInput.value? `fortaleza: ${labels[s]}` : 'esperando entrada...';
+  });
+  win.querySelector('#pw-crack').addEventListener('click', ()=>{
+    const pw = testInput.value || out.value.replace(/•/g,'');
+    if(!pw){ toast('Ingresa o genera una contraseña primero','warn'); return; }
+    const timeEl = win.querySelector('#pw-crack-time');
+    timeEl.textContent = 'calculando...';
+    Audio_.alarm();
+    setTimeout(()=>{
+      const s = pwStrength(pw);
+      const estimates = ['segundos','minutos','horas','días','años','siglos'];
+      timeEl.textContent = `tiempo estimado de fuerza bruta: ~${Math.floor(Math.random()*900)+1} ${estimates[s]}`;
+      Audio_.success();
+    }, 900);
+  });
+}
+
+/* =========================================================================
+   APP 6 (NEW) — MATRIX RAIN (standalone window, not just easter egg)
+   ========================================================================= */
+function matrixBody(){
+  return `<canvas id="matrix-canvas" style="width:100%; height:100%; display:block; background:#000;"></canvas>`;
+}
+function runMatrixApp(win){
+  const cv = win.querySelector('#matrix-canvas');
+  const c = cv.getContext('2d');
+  function resize(){ cv.width = win.querySelector('.win-body').clientWidth; cv.height = win.querySelector('.win-body').clientHeight; }
+  resize();
+  const chars = 'アイウエオカキクケコサシスセソ0123456789NEXUS_OS';
+  let drops = new Array(Math.floor(cv.width/14)).fill(0);
+  const iv = setInterval(()=>{
+    c.fillStyle = 'rgba(0,0,0,0.08)'; c.fillRect(0,0,cv.width,cv.height);
+    c.fillStyle = '#00ff8c'; c.font='14px monospace';
+    drops.forEach((y,i)=>{
+      c.fillText(chars[Math.floor(Math.random()*chars.length)], i*14, y*14);
+      drops[i] = (y*14>cv.height && Math.random()>0.975) ? 0 : y+1;
+    });
+  }, 40);
+  appRegistry.matrix._intervals = [iv];
+  window.addEventListener('resize', resize);
+}
+
+/* =========================================================================
+   APP 7 (NEW) — BITCOIN MINER (fake)
+   ========================================================================= */
+function minerBody(){
+  return `
+    <div class="col">
+      <div class="row" style="justify-content:space-between;">
+        <div class="label-sm">Estado del minero</div>
+        <span class="tag ok" id="miner-tag">DETENIDO</span>
+      </div>
+      <div class="mono-block" id="miner-log" style="height:130px;">presiona INICIAR para comenzar la minería (simulada, no real)...</div>
+      <div class="row" style="justify-content:space-between; font-size:12px;">
+        <span>Hashrate: <span id="miner-hash" style="color:var(--green);">0 H/s</span></span>
+        <span>Bloques: <span id="miner-blocks" style="color:var(--cyan);">0</span></span>
+      </div>
+      <div class="row" style="justify-content:space-between; font-size:12px;">
+        <span>Balance simulado:</span>
+        <span id="miner-balance" style="color:var(--amber); font-weight:700;">0.00000000 BTC</span>
+      </div>
+      <button class="btn" id="miner-toggle">▶ INICIAR MINERÍA</button>
+      <div style="font-size:10px; color:var(--text-dim);">* esto es 100% decorativo, no mina criptomonedas reales.</div>
+    </div>
+  `;
+}
+function runMiner(win){
+  let mining = false, balance = 0, blocks = 0, iv = null;
+  const log = win.querySelector('#miner-log');
+  const tag = win.querySelector('#miner-tag');
+  const hashEl = win.querySelector('#miner-hash');
+  const blocksEl = win.querySelector('#miner-blocks');
+  const balEl = win.querySelector('#miner-balance');
+  const btn = win.querySelector('#miner-toggle');
+  function line(t){ log.textContent += t+'\n'; log.scrollTop = log.scrollHeight; }
+  btn.addEventListener('click', ()=>{
+    mining = !mining;
+    if(mining){
+      btn.textContent = '■ DETENER MINERÍA';
+      tag.textContent = 'MINANDO'; tag.className='tag warn';
+      line('inicializando GPU virtual... OK');
+      Audio_.open();
+      iv = setInterval(()=>{
+        const hash = (200+Math.random()*800).toFixed(1);
+        hashEl.textContent = hash+' kH/s';
+        if(Math.random()<0.18){
+          blocks++; balance += Math.random()*0.00002;
+          blocksEl.textContent = blocks;
+          balEl.textContent = balance.toFixed(8)+' BTC';
+          line(`bloque #${1000000+blocks} encontrado — nonce 0x${Math.floor(Math.random()*99999).toString(16)}`);
+          Audio_.success();
+        }
+      }, 700);
+    } else {
+      btn.textContent = '▶ INICIAR MINERÍA';
+      tag.textContent = 'DETENIDO'; tag.className='tag ok';
+      hashEl.textContent = '0 H/s';
+      line('minería detenida por el operador.');
+      clearInterval(iv);
+      Audio_.close();
+    }
+  });
+  appRegistry.miner.onClose = ()=>{ if(iv) clearInterval(iv); };
+}
+
+/* =========================================================================
+   APP 8 (NEW) — ATTACK MAP (world map of fake attacks)
+   ========================================================================= */
+function attackMapBody(){
+  return `
+    <div class="row" style="justify-content:space-between;">
+      <div class="label-sm">Monitoreo global de amenazas</div>
+      <span class="tag bad" id="atk-tag">EN VIVO</span>
+    </div>
+    <svg id="atk-svg" viewBox="0 0 600 300" style="width:100%; height:200px; margin-top:8px; background:radial-gradient(ellipse at center, rgba(0,255,140,0.04), transparent 70%);">
+      <g id="atk-dots"></g>
+      <g id="atk-lines"></g>
+    </svg>
+    <div class="mono-block" id="atk-log" style="height:110px; margin-top:8px;"></div>
+    <table class="data-tbl" style="margin-top:8px;">
+      <thead><tr><th>Tipo</th><th>Origen</th><th>Destino</th><th>Severidad</th></tr></thead>
+      <tbody id="atk-tbody"></tbody>
+    </table>
+  `;
+}
+const attackTypes = ['DDoS','SQL Injection','Brute Force','Port Scan','Ransomware','Phishing','Zero-Day'];
+const countries = ['RU','CN','US','BR','DE','IN','KR','NG','FR','VN','CO','MX'];
+function runAttackMap(win){
+  const dotsG = win.querySelector('#atk-dots');
+  const linesG = win.querySelector('#atk-lines');
+  const log = win.querySelector('#atk-log');
+  const tbody = win.querySelector('#atk-tbody');
+  function rnd(max){ return Math.random()*max; }
+  const iv = setInterval(()=>{
+    const x1=rnd(600), y1=rnd(300), x2=rnd(600), y2=rnd(300);
+    const type = attackTypes[Math.floor(Math.random()*attackTypes.length)];
+    const from = countries[Math.floor(Math.random()*countries.length)];
+    const to = countries[Math.floor(Math.random()*countries.length)];
+    const sev = ['baja','media','alta','crítica'][Math.floor(Math.random()*4)];
+    const sevColor = {baja:'#00ff8c',media:'#ffb800',alta:'#ff3860',crítica:'#ff3860'}[sev];
+
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+    line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+    line.setAttribute('stroke', sevColor); line.setAttribute('stroke-width','1'); line.setAttribute('opacity','0.6');
+    linesG.appendChild(line);
+
+    [[x1,y1],[x2,y2]].forEach(([x,y])=>{
+      const dot = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',x); dot.setAttribute('cy',y); dot.setAttribute('r','3'); dot.setAttribute('fill', sevColor);
+      dotsG.appendChild(dot);
+      setTimeout(()=>dot.remove(), 2500);
+    });
+    setTimeout(()=>line.remove(), 2500);
+
+    log.textContent = `[${new Date().toLocaleTimeString()}] ${type} detectado: ${from} → ${to} (severidad: ${sev})\n` + log.textContent;
+    log.textContent = log.textContent.split('\n').slice(0,8).join('\n');
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${type}</td><td>${from}</td><td>${to}</td><td><span class="tag" style="color:${sevColor}; border-color:${sevColor};">${sev}</span></td>`;
+    tbody.prepend(tr);
+    while(tbody.children.length>6) tbody.lastChild.remove();
+    if(sev==='crítica' && Math.random()<0.4) Audio_.alarm();
+  }, 1100);
+  appRegistry.attackmap._intervals = [iv];
+}
+
+/* =========================================================================
+   APP REGISTRY
+   ========================================================================= */
+const appRegistry = {
+  scanner: {
+    glyph:'📡', label:'NETWORK\nSCANNER',
+    launch(){ const w = openApp('scanner','Network Scanner','📡', scannerBody(), {width:480, height:420}); if(!w.dataset.init){ w.dataset.init='1'; runScanner(w); } }
+  },
+  database: {
+    glyph:'🗄️', label:'DATABASE',
+    launch(){ const w = openApp('database','Database Explorer','🗄️', dbBody(), {width:520, height:400}); if(!w.dataset.init){ w.dataset.init='1'; runDatabase(w); } }
+  },
+  console: {
+    glyph:'💻', label:'CONSOLE',
+    launch(){ const w = openApp('console','Console','💻', consoleBody(), {width:480, height:360}); if(!w.dataset.init){ w.dataset.init='1'; runConsole(w); } }
+  },
+  surveillance: {
+    glyph:'📷', label:'SURVEILLANCE',
+    launch(){ const w = openApp('surveillance','Surveillance','📷', surveillanceBody(), {width:440, height:340}); if(!w.dataset.init){ w.dataset.init='1'; runSurveillance(w); } },
+    onClose(){ (this._intervals||[]).forEach(clearInterval); this._intervals=[]; const w=document.getElementById('win-surveillance'); if(w) delete w.dataset.init; }
+  },
+  password: {
+    glyph:'🔐', label:'PASSWORD\nTOOL',
+    launch(){ const w = openApp('password','Password Tool','🔐', passwordBody(), {width:440, height:480}); if(!w.dataset.init){ w.dataset.init='1'; runPassword(w); } }
+  },
+  matrix: {
+    glyph:'🟩', label:'MATRIX\nRAIN',
+    launch(){ const w = openApp('matrix','Matrix Rain','🟩', matrixBody(), {width:420, height:320}); if(!w.dataset.init){ w.dataset.init='1'; runMatrixApp(w); } },
+    onClose(){ (this._intervals||[]).forEach(clearInterval); this._intervals=[]; const w=document.getElementById('win-matrix'); if(w) delete w.dataset.init; }
+  },
+  miner: {
+    glyph:'₿', label:'BTC\nMINER',
+    launch(){ const w = openApp('miner','Crypto Miner','₿', minerBody(), {width:400, height:420}); if(!w.dataset.init){ w.dataset.init='1'; runMiner(w); } }
+  },
+  attackmap: {
+    glyph:'🌐', label:'ATTACK\nMAP',
+    launch(){ const w = openApp('attackmap','Global Threat Map','🌐', attackMapBody(), {width:560, height:480}); if(!w.dataset.init){ w.dataset.init='1'; runAttackMap(w); } },
+    onClose(){ (this._intervals||[]).forEach(clearInterval); this._intervals=[]; const w=document.getElementById('win-attackmap'); if(w) delete w.dataset.init; }
+  },
+};
+
+buildIcons();
+
+</script>
 </body>
 </html>
